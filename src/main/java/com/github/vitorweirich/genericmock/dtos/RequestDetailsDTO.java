@@ -1,5 +1,6 @@
 package com.github.vitorweirich.genericmock.dtos;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,8 +15,13 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class RequestDetailsDTO {
+public class RequestDetailsDTO implements Serializable {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	
 	private String requestKey;
 	private String method;
     private String uri;

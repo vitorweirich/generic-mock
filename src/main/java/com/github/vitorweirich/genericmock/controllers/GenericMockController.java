@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.vitorweirich.genericmock.dtos.RequestDetailsDTO;
 import com.github.vitorweirich.genericmock.handlers.RequestHandler;
 
@@ -27,8 +29,12 @@ public class GenericMockController {
 	
 	private final Map<String, Function<RequestDetailsDTO, ResponseEntity<Object>>> pathHandlers = new HashMap<>();
 	private final Map<Pattern, Function<RequestDetailsDTO, ResponseEntity<Object>>> patternHandlers = new HashMap<>();
+	private final ObjectMapper objectMapper;
 	
 	public GenericMockController(List<RequestHandler> registeredHandlers) {
+		this.objectMapper = new ObjectMapper();
+		objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+		
 		registeredHandlers.forEach(handler -> {
 			if(Objects.nonNull(handler.getPathMatcher())) {
 				this.pathHandlers.put(handler.getPathMatcher(), handler.getHandler());
@@ -42,12 +48,23 @@ public class GenericMockController {
     @RequestMapping("/**")
     public ResponseEntity<Object> handleAllRequests(HttpServletRequest request, @RequestBody(required = false) String body) {
         RequestDetailsDTO requestDetails = getRequestDetails(request, body);
-        log.debug("GenericMockController.handleAllRequests - requestData [{}]", requestDetails.toString());
+        if(log.isDebugEnabled()) {
+        	log.debug("GenericMockController.handleAllRequests - requestData [{}]", this.toIdentJson(requestDetails));
+        }
         
         return Optional.ofNullable(pathHandlers.get(requestDetails.getRequestKey()))
         		.or(() -> Optional.ofNullable(firstMatch(requestDetails)))
         		.map(handler -> handler.apply(requestDetails))
         		.orElse(ResponseEntity.ok("OK"));
+    }
+    
+    private String toIdentJson(Object object) {
+    	try {
+			return this.objectMapper.writeValueAsString(object);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
     }
     
     private Function<RequestDetailsDTO, ResponseEntity<Object>> firstMatch(RequestDetailsDTO requestDetails) {

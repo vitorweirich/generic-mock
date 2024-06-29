@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.github.vitorweirich</groupId>
-	<artifactId>GenericMock</artifactId>
+	<artifactId>generic-mock</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>GenericMock</name>
 	<description>Mock generico</description>
@@ -60,6 +60,10 @@
 
 	<build>
 		<plugins>
+			<plugin>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+            </plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
