@@ -20,6 +20,15 @@ public class ResourceLoaderUtil {
 	private final ObjectMapper objectMapper;
 	
 	private final ResourceLoader resourceLoader;
+
+	public <T> T toObject(String jsonString, final Class<T> clazz) {
+        try {
+            return this.objectMapper.readValue(jsonString, clazz);
+        } catch (final Exception exception) {
+        	exception.printStackTrace();
+            throw new RuntimeException("ParseJsonError");
+        }
+    }
 	
 	public <T> Optional<T> loadResource(String resourceName, Class<T> clazz) {
     	return this.loadResource(resourceName, clazz, null);

@@ -13,7 +13,6 @@ public class GetTestHandlerImpl implements RequestHandler {
 
 	@Override
 	public Function<RequestDetailsDTO, ResponseEntity<Object>> getHandler() {
-		// TODO Auto-generated method stub
 		return (request) -> ResponseEntity.ok("Get Handler Registerd With SUCCESS!");
 	}
 

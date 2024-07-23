@@ -1,6 +1,5 @@
 package com.github.vitorweirich.genericmock.controllers;
 
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,15 +7,15 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.github.vitorweirich.genericmock.dtos.MatchType;
 import com.github.vitorweirich.genericmock.dtos.RequestDetailsDTO;
 import com.github.vitorweirich.genericmock.handlers.RequestHandler;
 
@@ -31,9 +30,8 @@ public class GenericMockController {
 	private final Map<Pattern, Function<RequestDetailsDTO, ResponseEntity<Object>>> patternHandlers = new HashMap<>();
 	private final ObjectMapper objectMapper;
 	
-	public GenericMockController(List<RequestHandler> registeredHandlers) {
-		this.objectMapper = new ObjectMapper();
-		objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+	public GenericMockController(List<RequestHandler> registeredHandlers, ObjectMapper objectMapper) {
+		this.objectMapper = objectMapper;
 		
 		registeredHandlers.forEach(handler -> {
 			if(Objects.nonNull(handler.getPathMatcher())) {
@@ -46,16 +44,34 @@ public class GenericMockController {
 	}
 
     @RequestMapping("/**")
-    public ResponseEntity<Object> handleAllRequests(HttpServletRequest request, @RequestBody(required = false) String body) {
-        RequestDetailsDTO requestDetails = getRequestDetails(request, body);
+    public ResponseEntity<Object> handleAllRequests(HttpServletRequest request) {
+        RequestDetailsDTO requestDetails = RequestDetailsDTO.fromRequest(request);
+        
         if(log.isDebugEnabled()) {
         	log.debug("GenericMockController.handleAllRequests - requestData [{}]", this.toIdentJson(requestDetails));
         }
         
         return Optional.ofNullable(pathHandlers.get(requestDetails.getRequestKey()))
+        		.map(handler -> {
+        			requestDetails.setMatchedBy(MatchType.PATH);
+        			return handler;
+        		})
         		.or(() -> Optional.ofNullable(firstMatch(requestDetails)))
         		.map(handler -> handler.apply(requestDetails))
         		.orElse(ResponseEntity.ok("OK"));
+    }
+    
+    private Function<RequestDetailsDTO, ResponseEntity<Object>> firstMatch(RequestDetailsDTO requestDetails) {
+    	for(Entry<Pattern, Function<RequestDetailsDTO, ResponseEntity<Object>>> handler: patternHandlers.entrySet()) {
+    		Matcher matcher = handler.getKey().matcher(requestDetails.getRequestKey());
+    		if(matcher.matches()) {
+    			requestDetails.setMatchedBy(MatchType.PATTERN);
+    			requestDetails.setRequestKeyMatcher(matcher);
+    			return handler.getValue();
+    		}
+    	}
+    	
+    	return null;
     }
     
     private String toIdentJson(Object object) {
@@ -65,48 +81,6 @@ public class GenericMockController {
 			e.printStackTrace();
 			return null;
 		}
-    }
-    
-    private Function<RequestDetailsDTO, ResponseEntity<Object>> firstMatch(RequestDetailsDTO requestDetails) {
-    	for(Entry<Pattern, Function<RequestDetailsDTO, ResponseEntity<Object>>> handler: patternHandlers.entrySet()) {
-    		if(handler.getKey().matcher(requestDetails.getRequestKey()).matches()) {
-    			return handler.getValue();
-    		}
-    	}
-    	
-    	return null;
-    }
-
-    private RequestDetailsDTO getRequestDetails(HttpServletRequest request, String body) {
-        RequestDetailsDTO requestDetails = new RequestDetailsDTO();
-
-        requestDetails.setMethod(request.getMethod());
-        requestDetails.setUri(request.getRequestURI());
-        requestDetails.setProtocol(request.getProtocol());
-
-        Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            String headerValue = request.getHeader(headerName);
-            requestDetails.getHeaders().put(headerName, headerValue);
-        }
-
-        Enumeration<String> parameterNames = request.getParameterNames();
-        while (parameterNames.hasMoreElements()) {
-            String parameterName = parameterNames.nextElement();
-            String parameterValue = request.getParameter(parameterName);
-            requestDetails.getParameters().put(parameterName, parameterValue);
-        }
-        
-        requestDetails.setBodyString(body);
-
-        requestDetails.setRemoteAddr(request.getRemoteAddr());
-        requestDetails.setRemoteHost(request.getRemoteHost());
-        requestDetails.setRemotePort(request.getRemotePort());
-
-        requestDetails.buildRequestKey();
-        
-        return requestDetails;
     }
     
 }

@@ -2,7 +2,6 @@ package com.github.vitorweirich.genericmock.handlers;
 
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.http.ResponseEntity;
@@ -11,30 +10,40 @@ import org.springframework.stereotype.Component;
 import com.github.vitorweirich.genericmock.dtos.RequestDetailsDTO;
 import com.github.vitorweirich.genericmock.utils.ResourceLoaderUtil;
 
-import lombok.RequiredArgsConstructor;
-
 @Component
-@RequiredArgsConstructor
-public class PostTestHandlerImpl implements RequestHandler {
+public class PostTestHandlerImpl extends BaseHandler {
 	
-	private static final Pattern HANDLER_PATTERN = Pattern.compile("(.*)_/v1/(.*)/batch/(.*)");
-
-	private final ResourceLoaderUtil resourceLoaderUtil;
+	private static final Pattern HANDLER_PATTERN = Pattern.compile("(?<method>.*)_/v1/(?<apiName>.*)/batch/(?<operationId>.*)");
+	
+	public PostTestHandlerImpl(ResourceLoaderUtil resourceLoaderUtil) {
+		super(resourceLoaderUtil);
+	}
 	
 	@Override
 	public Function<RequestDetailsDTO, ResponseEntity<Object>> getHandler() {
-		return (request) -> {
-			Matcher matcher = HANDLER_PATTERN.matcher(request.getRequestKey());
-			matcher.find();
-			String method = matcher.group(1);
+		return request -> {
+			String method = request.getNamedGroup("method", "GET");
+            Optional<String> apiName =  request.getNamedGroup("apiName");
+            String operationId = request.getNamedGroup("operationId", "");
+            
+            System.out.println();
+            System.out.println(request.getBodyString());
+            System.out.println();
+            Object object = this.resourceLoaderUtil.toObject(request.getBodyString(), Object.class);
+            
+            System.out.println();
+            System.out.println(request.getMatchedBy());
+            System.out.println(method);
+            System.out.println(apiName);
+            System.out.println(operationId);
+            System.out.println(object);
+            System.out.println();
 			
 			if("GET".equals(method)) {
 				return ResponseEntity.ok("GetResponse"); 
 			}
 			
-			String pathParam = matcher.group(3);
-			
-			Optional<Object> resource = this.resourceLoaderUtil.loadResource("mock.json", Object.class, (stringBody) -> stringBody.formatted(pathParam));
+			Optional<Object> resource = this.resourceLoaderUtil.loadResource("mock.json", Object.class, stringBody -> stringBody.formatted(operationId));
 			
 			if(resource.isEmpty()) {
 				return ResponseEntity.noContent().build();
@@ -45,7 +54,7 @@ public class PostTestHandlerImpl implements RequestHandler {
 
 	@Override
 	public String getPathMatcher() {
-		return null;
+		return "GET_/sim";
 	}
 
 	@Override
