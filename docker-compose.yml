@@ -1,9 +1,8 @@
 version: "3"
 services:
   generic-mock:
-    image: generic-mock-native
-    # build:
-    #   context: .
+    build:
+    context: .
     ports:
       - "8080:8080"
     environment:
